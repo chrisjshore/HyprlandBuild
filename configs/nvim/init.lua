@@ -1,0 +1,1 @@
+vim.opt.guicursor = "i:ver100,a:blinkon1"
