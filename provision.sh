@@ -34,7 +34,10 @@ waylandprotocols="https://gitlab.freedesktop.org/wayland/wayland-protocols.git"
 liftoff="https://gitlab.freedesktop.org/emersion/libliftoff.git"
 hyprland="https://github.com/hyprwm/Hyprland.git"
 sndio="https://caoua.org/git/sndio"
-Waybar="https://github.com/Alexays/Waybar.git"
+fmt="https://github.com/fmtlib/fmt.git"
+spdlog="https://github.com/gabime/spdlog.git"
+Waybar="https://github.com/chrisjshore/Waybar.git"
+#Waybar="https://github.com/Alexays/Waybar.git"
 
 #disabling ipv6 seems to help with network timeouts
 sudo nmcli connection modify "Wired connection 1" ipv6.method "disabled"
@@ -50,6 +53,8 @@ echo '140.82.113.4 github.com' | sudo tee -a /etc/hosts
 echo '185.82.219.62 caoua.org' | sudo tee -a /etc/hosts
 
 mkdir Source && cd $_
+
+sudo dnf upgrade -y
 
 #install build tools & other apps
 sudo dnf install -y git ninja-build cmake meson gcc-c++ m4 strace neovim wofi lshw htop jetbrains-mono-fonts-all chromium
@@ -109,11 +114,44 @@ iniparser-devel date-devel spdlog-devel libdbusmenu-gtk3-devel libnl3-devel upow
 libmpdclient-devel wireplumber-devel pipewire-jack-audio-connection-kit-devel gtk-layer-shell-devel fftw-devel \
 pulseaudio-libs-devel SDL2-devel SAASound-devel portaudio-devel ncurses-devel cava scdoc clang-tools-extra
 
+fmtVersion=$(dnf info fmt | grep Version | uniq | cut -d ":" -f 2 | cut -d "." -f 1 | xargs)
+spdVersion=$(dnf info spdlog | grep Version | uniq | cut -d ":" -f 2 | cut -d "." -f 2 | xargs)
+
+if [ $fmtVersion -lt 10 ]
+then
+	clone $fmt
+	cd $(getRepoName $fmt)
+	fmttag=$(git describe --tags `git rev-list --tags --max-count=1`)
+	git checkout tags/$fmttag -b $fmttag
+	cmake -DBUILD_SHARED_LIBS:bool=true .
+	make && sudo make install
+	cd ..
+	sudo ln -s /usr/local/lib64/libfmt.so /usr/lib64/libfmt.so.10
+
+	#assuming 1.x
+	if [ $spdVersion -lt 12 ]
+	then
+		clone $spdlog
+		cd $(getRepoName $spdlog)
+		spdtag=$(git describe --tags `git rev-list --tags --max-count=1`)
+		git checkout tags/$spdtag -b $spdtag
+		mkdir build && cd $_
+		cmake -DSPDLOG_BUILD_SHARED:bool=true -DSPDLOG_FMT_EXTERNAL:bool=true ..
+		make -j && sudo make install
+		spdMAJ=$(grep CPackConfig.cmake -e "VERSION_MAJOR" | cut -d " " -f 2 | tr -d '\"\)')
+		spdMIN=$(grep CPackConfig.cmake -e "VERSION_MINOR" | cut -d " " -f 2 | tr -d '\"\)')
+		cd ../..
+		sudo ln -s /usr/local/lib64/libspdlog.so /usr/lib64/libspdlog.so.$spdMAJ.$spdMIN
+	fi
+fi
+
 clone $Waybar
 cd $(getRepoName $Waybar)
+git switch clock_fix
 meson build
 cd build
 meson configure -Dexperimental=true
+meson configure -Dtests=disabled
 cd ..
 ninja -C build
 sudo ninja -C build install
