@@ -57,7 +57,7 @@ mkdir Source && cd $_
 sudo dnf upgrade -y
 
 #install build tools & other apps
-sudo dnf install -y git ninja-build cmake meson gcc-c++ m4 strace neovim wofi lshw htop jetbrains-mono-fonts-all chromium
+sudo dnf install -y git ninja-build cmake meson gcc-c++ m4 strace neovim wofi lshw htop jetbrains-mono-fonts-all chromium bat
 
 #install xcb-errors dependencies
 sudo dnf install -y dh-autoreconf xorg-x11-util-macros xcb-proto libxcb-devel
@@ -73,9 +73,9 @@ cd ..
 
 #install hyprland dependencies
 sudo dnf install -y libX11-devel pixman-devel wayland-protocols-devel cairo-devel pango-devel wayland-devel libdrm-devel \
-libxkbcommon-devel libinput-devel libudev-devel mesa-libEGL-devel mesa-libgbm-devel vulkan-loader-devel systemd-devel \
-libseat-devel hwdata-devel libdisplay-info-devel libinput-devel xorg-x11-server-Xwayland-devel xcb-util-renderutil-devel \
-xcb-util-devel xcb-util-wm-devel xcb-util-image-devel libwayland-server udis86-devel wlroots-devel glslang
+libxkbcommon-devel libinput-devel libudev-devel mesa-libEGL-devel mesa-libgbm-devel vulkan-loader-devel vulkan-validation-layers-devel \
+vulkan-tools systemd-devel libseat-devel hwdata-devel libdisplay-info-devel libinput-devel xorg-x11-server-Xwayland-devel \
+xcb-util-renderutil-devel xcb-util-devel xcb-util-wm-devel xcb-util-image-devel libwayland-server udis86-devel wlroots-devel glslang
 
 clone $waylandprotocols
 cd $(getRepoName $waylandprotocols)
@@ -166,8 +166,22 @@ sudo sed -i 's/chromium-browser/& --enable-features=UseOzonePlatform --ozone-pla
 sudo sed -i '$d' /var/lib/sddm/state.conf
 echo 'Session=/usr/local/share/wayland-sessions/hyprland.desktop' | sudo tee -a /var/lib/sddm/state.conf
 
-#cleanup hosts file for github.com, caoua.org, and *.freedesktop.org
+#fix unreadable terminal directory color
+echo "export LS_COLORS=\"$LS_COLORS:ow=0;30;42:\"" >> /home/vagrant/.bashrc
+
+echo "Installing NeoVim plugins..."
+for j in {1..3}
+do
+	#nvim is going to barf but after a few attempts all the plugins are downloaded
+	sudo -u vagrant bash -c 'nvim --headless -c "autocmd User PackerComplete quitall" -c "PackerSync" 2>/dev/null'
+	sleep 5
+done
+
+echo "Cleaning hosts file..."
+#clean hosts file of github.com, caoua.org, and *.freedesktop.org
 for i in {1..4}
 do
 	sudo sed -i '$d' /etc/hosts
 done
+
+echo "Build Complete!"
